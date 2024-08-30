@@ -2,7 +2,7 @@
 
 **RouteTTS** is a flexible routing library for multiple GenAI text-to-speech (TTS) providers. It provides a unified interface to generate audio from text blocks and makes it easy to combine multiple TTS providers into a single audio file.
 
-Supported TTS Platforms: 
+Supported TTS Platforms:
 - [x] OpenAI
 - [x] ElevenLabs
 - [ ] Play.HT *(Coming soon)*
@@ -15,9 +15,9 @@ Supported TTS Platforms:
 
 - Unified interface for multiple TTS providers
 - Easy configuration of multiple voices and speech generation
+- Audio normalization (prevents model output volumes from being noticably different)
 
 **Planned features:**
-- Audio normalization (to prevent output volumes from being noticably different).
 - Automatic chunking to overcome input character limits.
 - Speech generation optimizations.
 
@@ -31,15 +31,15 @@ Once you have Poetry installed, clone this repository and install the dependenci
 poetry install
 ```
 
-## Usage 
-RouteTTS provides an extremely simple wrapper over the most common TTS model providers such as OpenAI and ElevenLabs (others coming soon). 
+## Usage
+RouteTTS provides an extremely simple wrapper over the most common TTS model providers such as OpenAI and ElevenLabs (others coming soon).
 
 You first initialize a `TTS` client with a list of `Voice` objects. Each `Voice` object contains information about the voice's platform, model, and a unique voice identifier. Then, to generate audio, you create a `SpeechBlock` with a *id* and the *text* to convert to audio. That's it.
 
 Now, you can just easily change the id and we'll handle the rest.
 
 ### API Keys for Speech Providers
-To use **RouteTTS** in your project, you'll need to set up your API keys for the TTS providers you want to use. 
+To use **RouteTTS** in your project, you'll need to set up your API keys for the TTS providers you want to use.
 
 Before running the application, you need to set up the following environment variables:
 
@@ -54,7 +54,7 @@ You can set these environment variables in your shell or add them to a `.env` fi
 Create voices each with a unique identifiers. Here are examples for OpenAI and ElevenLabs voices:
 
 #### OpenAI
-As of August 30th, 2024, OpenAI has four voices: `alloy`, `echo`, `fable`, `onyx`, `nova`, and `shimmer`. They also have two models: `tts-1` and `tts-1-hd`. 
+As of August 30th, 2024, OpenAI has four voices: `alloy`, `echo`, `fable`, `onyx`, `nova`, and `shimmer`. They also have two models: `tts-1` and `tts-1-hd`.
 ```
 OpenAIVoice(
     id=<any_unique_id>
@@ -63,7 +63,7 @@ OpenAIVoice(
 )
 ```
 
-#### ElevenLabs 
+#### ElevenLabs
 Refer to the ElevenLabs documentation to find your voice and associated model and id.
 
 ```
@@ -75,7 +75,7 @@ ElevenLabsVoice(
 ```
 
 ### TTS Instantiation
-Initialize a `TTS` object with the voices you just created. 
+Initialize a `TTS` object with the voices you just created.
 
 ```
 TTS(
@@ -91,7 +91,7 @@ Now, you can generate audio by creating a `SpeechBlock` object and calling `TTS(
 ```
 # Create SpeechBlock object
 speech_block = SpeechBlock(
-    voice_id=<voice_id>, 
+    voice_id=<voice_id>,
     text="Some random text to convert to audio"
 )
 
@@ -110,12 +110,12 @@ We (*evenetually will*) handle optimization of converting multiple SpeechBlocks 
 ```
 # Create SpeechBlock objects
 speech_block_one = SpeechBlock(
-    voice_id=<voice_id_one>, 
+    voice_id=<voice_id_one>,
     text="Some random text to convert to audio"
 )
 
 speech_block_two = SpeechBlock(
-    voice_id=<voice_id_two>, 
+    voice_id=<voice_id_two>,
     text="Some more random text to convert to audio"
 )
 
@@ -130,19 +130,19 @@ with open(audio_file_path, "wb") as audio_file:
 
 **Adding Buffer Between Voices**
 There are two ways to create delay (in ms) between output speech:
-- Create a `buffer` in the `SpeechBlock` object. This adds silence at the end of the block. 
+- Create a `buffer` in the `SpeechBlock` object. This adds silence at the end of the block.
 
 ```
 # Buffer of 5000 ms between first and second speech blocks
 # Create SpeechBlock objects
 speech_block_one = SpeechBlock(
-    voice_id=<voice_id_one>, 
+    voice_id=<voice_id_one>,
     text="Some random text to convert to audio"
     buffer=5000
 )
 
 speech_block_two = SpeechBlock(
-    voice_id=<voice_id_two>, 
+    voice_id=<voice_id_two>,
     text="Some more random text to convert to audio"
 )
 
@@ -164,10 +164,7 @@ You can run the test suite by:
 poetry run pytest
 ```
 
-## Feature List 
-- [x] Add OpenAI audio provider
-- [x] Add ElevenLab audio provider
-- [ ] Add audio-level normalization so multiple voices are all consistent in volume  
+## Feature List
 - [ ] Add Deepgram audio provider
 - [ ] Add Play.ht audio provider
 - [ ] Add AWS Polly audio provider

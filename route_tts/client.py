@@ -18,20 +18,20 @@ class TTS:
 
         self.openai_client = None
         self.elevenlabs_client = None
-        
+
         if openai_api_key or os.getenv("OPENAI_API_KEY"):
             self.openai_client = openai.OpenAI(api_key=openai_api_key or os.getenv("OPENAI_API_KEY"))
-        
+
         if elevenlabs_api_key or os.getenv("ELEVEN_API_KEY"):
             self.elevenlabs_client = ElevenLabs(api_key=elevenlabs_api_key or os.getenv("ELEVEN_API_KEY"))
-        
+
     def initialize_voices(self, voices: List[Voice]):
         """
         Initialize or update the voices dictionary.
-        
+
         This method allows adding or updating voices after the TTS instance has been created.
         It can be used if voices were not provided during initialization.
-        
+
         :param voices: List of Voice objects to be added or updated
         """
         for voice in voices:
@@ -72,9 +72,9 @@ class TTS:
         :return: List of Voice objects
         """
         return list(self.voices.values())
-    
-    # TODO: Optimze speech generation. Certain models lack context so they can be generated in parallel. 
-    def generate_speech_list(self, speech_blocks: List[SpeechBlock], buffer: int = 0, single_output: bool = True) -> Union[AudioSegment, List[AudioSegment]]:
+
+    # TODO: Optimze speech generation. Certain models lack context so they can be generated in parallel.
+    def generate_speech_list(self, speech_blocks: List[SpeechBlock], buffer: int = 0, single_output: bool = True, normalize_outputs: bool = True) -> Union[AudioSegment, List[AudioSegment]]:
         """
         Generate speech for a list of SpeechBlocks.
 
@@ -104,18 +104,55 @@ class TTS:
             except Exception as e:
                 raise ValueError(f"Error generating speech for block: {str(e)}")
 
+        # Normalize the audio segments
+        normalized_segments = self.normalize_audio(segments, normalize_outputs)
+
         if single_output:
-            return sum(segments, AudioSegment.silent(duration=0))
+            return sum(normalized_segments, AudioSegment.silent(duration=0))
         else:
-            return segments
+            return normalized_segments
+
+    def normalize_audio(self, audio_segments: List[AudioSegment], normalize_outputs: bool, target_dBFS: float = -30.0, tolerance: float = 3.0) -> List[AudioSegment]:
+        """
+        Softly normalize the volume of multiple AudioSegments to be closer to a target dBFS level.
+
+        :param audio_segments: List of AudioSegments to normalize
+        :param target_dBFS: Target dBFS level for normalization (default: -20.0)
+        :param tolerance: Allowed deviation from target dBFS (default: 3.0)
+        :return: List of normalized AudioSegments
+        """
+        if (not normalize_outputs):
+            return audio_segments
+
+        # Find the maximum and minimum dBFS across all segments
+        max_dBFS = max(segment.dBFS for segment in audio_segments)
+        min_dBFS = min(segment.dBFS for segment in audio_segments)
+
+        # Calculate the current range and the target range
+        current_range = max_dBFS - min_dBFS
+        target_range = 2 * tolerance
+
+        normalized_segments = []
+        for segment in audio_segments:
+            if current_range > target_range:
+                # Compress the range if it's larger than the target range
+                normalized_dBFS = (segment.dBFS - min_dBFS) / current_range * target_range + (target_dBFS - tolerance)
+                adjustment = normalized_dBFS - segment.dBFS
+                normalized_segments.append(segment.apply_gain(adjustment))
+            else:
+                # If the range is already small enough, just center it around the target
+                center_adjustment = target_dBFS - (max_dBFS + min_dBFS) / 2
+                normalized_segments.append(segment.apply_gain(center_adjustment))
+
+        return normalized_segments
 
     def generate_speech(self, speech_block: SpeechBlock) -> AudioSegment:
         """
         Generate speech based on the provided SpeechBlock.
-        
+
         This method determines the appropriate platform (OpenAI or ElevenLabs)
         and calls the corresponding speech generation method.
-        
+
         :param speech_block: SpeechBlock containing text and id
         :return: Generated audio as bytes
         :raises ValueError: If id is not found or platform is unsupported
@@ -142,7 +179,7 @@ class TTS:
             input=text
         )
         return self._create_audio_segment(response.content)
-    
+
     def _generate_elevenlabs_speech(self, voice: ElevenLabsVoice, text: str) -> AudioSegment:
         if not self.elevenlabs_client:
             raise ValueError("ElevenLabs client is not initialized. Please provide a valid ElevenLabs API key.")

@@ -7,14 +7,14 @@ OUTPUT_DIR = "output/elevenlabs"
 
 voice_a = ElevenLabsVoice(
     id="test_elevenlabs_voice_a",
-    model="eleven_monolingual_v1",
-    voice="XB0fDUnXU5powFXDhCwa"
+    model="eleven_turbo_v2_5",
+    voice="pBZVCk298iJlHAcHQwLr"
 )
 
 voice_b = ElevenLabsVoice(
     id="test_elevenlabs_voice_b",
-    model="eleven_monolingual_v1",
-    voice="OYTbf65OHHFELVut7v2H"
+    model="eleven_turbo_v2_5",
+    voice="iP95p4xoKVk53GoZ742B"
 )
 
 tts_client = TTS(voices=[voice_a, voice_b])
@@ -96,7 +96,35 @@ async def test_generate_multiple_elevenlabs_speech_different_buffers():
     assert len(audio_segment) > 0, "No audio data was generated"
     save_audio_segment("test_output_multiple_with_different_buffers.mp3", audio_segment)
 
-def save_audio_segment(name: str, audio_segment): 
+@pytest.mark.asyncio
+async def test_generate_multiple_elevenlabs_speech():
+    # Ensure ElevenLabs API key is set in environment variables
+    assert os.getenv("ELEVEN_API_KEY"), "ELEVEN_API_KEY must be set in environment variables"
+
+    # Initialize TTS client with ElevenLabs voices
+
+    # Create SpeechBlocks
+    speech_block_a = SpeechBlock(
+        voice_id="test_elevenlabs_voice_a",
+        text="I'm normally a bit quieter of a voice, but after normalizing, it should be better!"
+    )
+
+    speech_block_b = SpeechBlock(
+        voice_id="test_elevenlabs_voice_b",
+        text="Yes this is great. I can hear you much better now"
+    )
+
+    speech_block_c = SpeechBlock(
+        voice_id="test_elevenlabs_voice_a",
+        text="Perfect - we're all good to go!"
+    )
+
+    # Generate speech
+    audio_segment = tts_client.generate_speech_list([speech_block_a, speech_block_b, speech_block_c], normalize_outputs=True)
+    assert len(audio_segment) > 0, "No audio data was generated"
+    save_audio_segment("test_output_multiple_normalized.mp3", audio_segment)
+
+def save_audio_segment(name: str, audio_segment):
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     # Save the audio to the output directory
