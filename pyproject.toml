@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "route-tts"
+version = "0.1.0"
+description = "A flexible routing library for GenAI text-to-speech (TTS)."
+authors = ["Pierson Marks <pierson@jellypod.ai>"]
+readme = "README.md"
+license = "MIT"
+homepage = "https://jellypod.ai/route-tts"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
