@@ -31,6 +31,12 @@ Once you have Poetry installed, clone this repository and install the dependenci
 poetry install
 ```
 
+To include **RouteTTS** as a dependency, you just install it normally via pip.
+
+```bash
+pip install route-tts
+```
+
 ## Usage
 RouteTTS provides an extremely simple wrapper over the most common TTS model providers such as OpenAI and ElevenLabs (others coming soon).
 
