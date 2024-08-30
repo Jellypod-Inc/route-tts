@@ -1,24 +1,31 @@
 import pytest
 from route_tts.client import TTS
-from route_tts.types import OpenAIVoice, SpeechBlock, Platform
+from route_tts.types import OpenAIVoice, SpeechBlock
 import os
+
+OUTPUT_DIR = "output/openai"
+
+# Initialize TTS client with OpenAI voices
+voice_a = OpenAIVoice(
+    id="test_voice_a",
+    model="tts-1",
+    voice="alloy"
+)
+voice_b = OpenAIVoice(
+    id="test_voice_b",
+    model="tts-1",
+    voice="nova"
+)
+tts_client = TTS(voices=[voice_a, voice_b])
 
 @pytest.mark.asyncio
 async def test_generate_openai_speech():
     # Ensure OpenAI API key is set in environment variables
     assert os.getenv("OPENAI_API_KEY"), "OPENAI_API_KEY must be set in environment variables"
 
-    # Initialize TTS client with an OpenAI voice
-    voice = OpenAIVoice(
-        voice_id="test_voice",
-        model="tts-1",
-        voice="alloy"
-    )
-    tts_client = TTS(voices=[voice])
-
     # Create a SpeechBlock
     speech_block = SpeechBlock(
-        voice_id="test_voice",
+        voice_id="test_voice_a",
         text="Hello, this is a test of the OpenAI text-to-speech functionality."
     )
 
@@ -29,32 +36,12 @@ async def test_generate_openai_speech():
     assert len(audio_segment) > 0, "No audio data was generated"
 
     # Create output directory if it doesn't exist
-    output_dir = "output"
-    os.makedirs(output_dir, exist_ok=True)
-
-    # Save the audio to the output directory
-    output_file = os.path.join(output_dir, "test_output.mp3")
-    audio_segment.export(output_file, format="mp3")
-
-    print("Audio saved to test_output.mp3 for manual verification")
+    save_audio_segment("test_output_single.mp3", audio_segment)
 
 @pytest.mark.asyncio
 async def test_generate_multiple_openai_speech():
     # Ensure OpenAI API key is set in environment variables
     assert os.getenv("OPENAI_API_KEY"), "OPENAI_API_KEY must be set in environment variables"
-
-    # Initialize TTS client with an OpenAI voice
-    voice_a = OpenAIVoice(
-        voice_id="test_voice_a",
-        model="tts-1",
-        voice="alloy"
-    )
-    voice_b = OpenAIVoice(
-        voice_id="test_voice_b",
-        model="tts-1",
-        voice="nova"
-    )
-    tts_client = TTS(voices=[voice_a, voice_b])
 
     # Create SpeechBlocks
     speech_block_a = SpeechBlock(
@@ -73,12 +60,14 @@ async def test_generate_multiple_openai_speech():
     # Assert that we received some audio data
     assert len(audio_segment) > 0, "No audio data was generated"
 
-    # Create output directory if it doesn't exist
-    output_dir = "output"
-    os.makedirs(output_dir, exist_ok=True)
+    save_audio_segment("test_output_multiple.mp3", audio_segment)
+
+
+def save_audio_segment(name: str, audio_segment): 
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     # Save the audio to the output directory
-    output_file = os.path.join(output_dir, "test_output_multiple.mp3")
+    output_file = os.path.join(OUTPUT_DIR, name)
     audio_segment.export(output_file, format="mp3")
 
-    print("Audio saved to test_output.mp3 for manual verification")
+    print(f"Audio saved to {name} for manual verification")

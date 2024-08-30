@@ -1,14 +1,25 @@
 # RouteTTS
 
-**RouteTTS** is a flexible routing library for GenAI text-to-speech (TTS). It provides a unified interface for multiple TTS providers and makes it easy to quickly call 
-multiple TTS providers within a standard interface.
+**RouteTTS** is a flexible routing library for multiple GenAI text-to-speech (TTS) providers. It provides a unified interface to generate audio from text blocks and makes it easy to combine multiple TTS providers into a single audio file.
 
-Other planned features include audio normalization (to prevent output volumes from being drastically different) and speech generation optimizations. 
+Supported TTS Platforms: 
+- [x] OpenAI
+- [x] ElevenLabs
+- [ ] Play.HT *(Coming soon)*
+- [ ] Amazon Polly *(Coming soon)*
+- [ ] Deepgram *(Coming soon)*
+
+*Please open an issue to suggest more!*
 
 ## Features
 
 - Unified interface for multiple TTS providers
-- Easy configuration of voices and speech generation
+- Easy configuration of multiple voices and speech generation
+
+**Planned features:**
+- Audio normalization (to prevent output volumes from being noticably different).
+- Automatic chunking to overcome input character limits.
+- Speech generation optimizations.
 
 ## Installation
 
@@ -23,9 +34,9 @@ poetry install
 ## Usage 
 RouteTTS provides an extremely simple wrapper over the most common TTS model providers such as OpenAI and ElevenLabs (others coming soon). 
 
-You first initialize a `TTS` client with a list of `Voice` objects. Each `Voice` object contains information about the voice's platform, model, and a unique voice identifier. Then, to generate audio, you create a `SpeechBlock` with a *voice_id* and the *text* to convert to audio. That's it.
+You first initialize a `TTS` client with a list of `Voice` objects. Each `Voice` object contains information about the voice's platform, model, and a unique voice identifier. Then, to generate audio, you create a `SpeechBlock` with a *id* and the *text* to convert to audio. That's it.
 
-Now, you can just easily change the voice_id and we'll handle the rest. 
+Now, you can just easily change the id and we'll handle the rest.
 
 ### API Keys for Speech Providers
 To use **RouteTTS** in your project, you'll need to set up your API keys for the TTS providers you want to use. 
@@ -46,14 +57,22 @@ Create voices each with a unique identifiers. Here are examples for OpenAI and E
 As of August 30th, 2024, OpenAI has four voices: `alloy`, `echo`, `fable`, `onyx`, `nova`, and `shimmer`. They also have two models: `tts-1` and `tts-1-hd`. 
 ```
 OpenAIVoice(
-    voice_id=<any_unique_id>
+    id=<any_unique_id>
     voice=<alloy | echo | fable | onyx | nova | shimmer>
     model: <tts-1 | tts-1-hd>
 )
 ```
 
 #### ElevenLabs 
-<!-- COMING SOON -->
+Refer to the ElevenLabs documentation to find your voice and associated model and id.
+
+```
+ElevenLabsVoice(
+    id=<any_unique_id>
+    voice=<eleven labs voice id>
+    model: <eleven_multilingual_v1 | eleven_turbo_v2 | eleven_turbo_v2_5> // Others may have been released
+)
+```
 
 ### TTS Instantiation
 Initialize a `TTS` object with the voices you just created. 
@@ -67,8 +86,8 @@ TTS(
 ### Creating Audio
 Now, you can generate audio by creating a `SpeechBlock` object and calling `TTS().generate_audio()`
 
-
 #### Single Audio SpeechBlock
+
 ```
 # Create SpeechBlock object
 speech_block = SpeechBlock(
@@ -86,7 +105,7 @@ with open(audio_file_path, "wb") as audio_file:
 ```
 
 #### Multiple SpeechBlock
-We (*will*) handle optimization of converting multiple SpeechBlocks in a List. Certain providers (OpenAI) do not provide a way to maintain context and intonation across multiple requests which becomes embarassingly parallel. Other platforms like ElevenLabs does enable this so that a TTS request can know how the previous one ended, creating more natural sounding realism.  
+We (*evenetually will*) handle optimization of converting multiple SpeechBlocks in a List. Certain providers (OpenAI) do not provide a way to maintain context and intonation across multiple requests which becomes embarassingly parallel. Other platforms like ElevenLabs does enable this so that a TTS request can know how the previous one ended, creating more natural sounding realism.
 
 ```
 # Create SpeechBlock objects
@@ -109,8 +128,38 @@ with open(audio_file_path, "wb") as audio_file:
     audio_file.write(audio)
 ```
 
+**Adding Buffer Between Voices**
+There are two ways to create delay (in ms) between output speech:
+- Create a `buffer` in the `SpeechBlock` object. This adds silence at the end of the block. 
+
+```
+# Buffer of 5000 ms between first and second speech blocks
+# Create SpeechBlock objects
+speech_block_one = SpeechBlock(
+    voice_id=<voice_id_one>, 
+    text="Some random text to convert to audio"
+    buffer=5000
+)
+
+speech_block_two = SpeechBlock(
+    voice_id=<voice_id_two>, 
+    text="Some more random text to convert to audio"
+)
+
+audio = TTS().generate_speech_list([speech_block_one, speech_block_two])
+```
+
+- Add a consistent `buffer` between all `SpeechBlock` objects by calling `generate_speech_list()` with a `buffer` parameter.
+
+```
+# Buffer of 1000 ms between all speech blocks
+audio = TTS().generate_speech_list([speech_block_one, speech_block_two], buffer=1000)
+```
+
+These can also be combined so that there is both per `SpeechBlock` delay and global delay.
+
 ## Tests
-You can run the test suite by: 
+You can run the test suite by:
 ```
 poetry run pytest
 ```
