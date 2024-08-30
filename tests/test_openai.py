@@ -1,6 +1,6 @@
 import pytest
-from route_tts.client import TTS
-from route_tts.types import OpenAIVoice, SpeechBlock
+from route_tts import TTS, SpeechBlock
+from route_tts.voices import OpenAIVoice
 import os
 
 OUTPUT_DIR = "output/openai"

@@ -21,8 +21,3 @@ class ElevenLabsVoice(Voice):
     model: str
     voice: str | Voice
     platform: Platform = Platform.ELEVENLABS
-
-class SpeechBlock(BaseModel):
-    voice_id: str
-    text: str
-    buffer: int = 0  # Buffer in milliseconds between this speech block and the next one

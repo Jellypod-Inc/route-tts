@@ -3,8 +3,14 @@ import os
 from typing import List, Dict, Union
 import openai
 from elevenlabs.client import ElevenLabs
-from route_tts.types import OpenAIVoice, ElevenLabsVoice, Platform, SpeechBlock, Voice
+from pydantic import BaseModel
+from route_tts.voices import OpenAIVoice, ElevenLabsVoice, Platform, Voice
 from pydub import AudioSegment
+
+class SpeechBlock(BaseModel):
+    voice_id: str
+    text: str
+    buffer: int = 0  # Buffer in milliseconds between this speech block and the next one
 
 class TTS:
     def __init__(self, voices: List[Voice], openai_api_key: str = None, elevenlabs_api_key: str = None):

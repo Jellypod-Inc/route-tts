@@ -1,6 +1,6 @@
 import pytest
-from route_tts.client import TTS
-from route_tts.types import ElevenLabsVoice, SpeechBlock
+from route_tts import TTS, SpeechBlock
+from route_tts.voices import ElevenLabsVoice
 import os
 
 OUTPUT_DIR = "output/elevenlabs"
