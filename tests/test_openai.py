@@ -8,12 +8,12 @@ OUTPUT_DIR = "output/openai"
 # Initialize TTS client with OpenAI voices
 voice_a = OpenAIVoice(
     id="test_voice_a",
-    model="tts-1",
+    voice_model="tts-1",
     voice="alloy"
 )
 voice_b = OpenAIVoice(
     id="test_voice_b",
-    model="tts-1",
+    voice_model="tts-1",
     voice="nova"
 )
 tts_client = TTS(voices=[voice_a, voice_b])
@@ -63,7 +63,7 @@ async def test_generate_multiple_openai_speech():
     save_audio_segment("test_output_multiple.mp3", audio_segment)
 
 
-def save_audio_segment(name: str, audio_segment): 
+def save_audio_segment(name: str, audio_segment):
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     # Save the audio to the output directory

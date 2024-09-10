@@ -174,7 +174,7 @@ class TTS:
             raise ValueError("OpenAI client is not initialized. Please provide a valid OpenAI API key.")
 
         response = openai.audio.speech.create(
-            model=voice.model,
+            model=voice.voice_model,
             voice=voice.voice,
             input=text
         )
@@ -185,7 +185,7 @@ class TTS:
             raise ValueError("ElevenLabs client is not initialized. Please provide a valid ElevenLabs API key.")
 
         response = self.elevenlabs_client.generate(
-            model=voice.model,
+            model=voice.voice_model,
             voice=voice.voice,
             text=text
         )

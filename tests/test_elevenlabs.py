@@ -7,13 +7,13 @@ OUTPUT_DIR = "output/elevenlabs"
 
 voice_a = ElevenLabsVoice(
     id="test_elevenlabs_voice_a",
-    model="eleven_turbo_v2_5",
+    voice_model="eleven_turbo_v2_5",
     voice="pBZVCk298iJlHAcHQwLr"
 )
 
 voice_b = ElevenLabsVoice(
     id="test_elevenlabs_voice_b",
-    model="eleven_turbo_v2_5",
+    voice_model="eleven_turbo_v2_5",
     voice="iP95p4xoKVk53GoZ742B"
 )
 

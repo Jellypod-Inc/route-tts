@@ -12,12 +12,12 @@ class Voice(BaseModel):
     platform: Platform
 
 class OpenAIVoice(Voice):
-    model: str
+    voice_model: str
     voice: str
     platform: Platform = Platform.OPENAI
     output_format: Literal["mp3", "opus", "aac", "flac", "wav", "pcm"] = "mp3"
 
 class ElevenLabsVoice(Voice):
-    model: str
+    voice_model: str
     voice: str | Voice
     platform: Platform = Platform.ELEVENLABS

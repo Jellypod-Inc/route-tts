@@ -40,7 +40,7 @@ pip install route-tts
 ## Usage
 RouteTTS provides an extremely simple wrapper over the most common TTS model providers such as OpenAI and ElevenLabs (others coming soon).
 
-You first initialize a `TTS` client with a list of `Voice` objects. Each `Voice` object contains information about the voice's platform, model, and a unique voice identifier. Then, to generate audio, you create a `SpeechBlock` with a *id* and the *text* to convert to audio. That's it.
+You first initialize a `TTS` client with a list of `Voice` objects. Each `Voice` object contains information about the voice's platform, voice_model, and a unique voice identifier. Then, to generate audio, you create a `SpeechBlock` with a *id* and the *text* to convert to audio. That's it.
 
 Now, you can just easily change the id and we'll handle the rest.
 
@@ -60,23 +60,23 @@ You can set these environment variables in your shell or add them to a `.env` fi
 Create voices each with a unique identifiers. Here are examples for OpenAI and ElevenLabs voices:
 
 #### OpenAI
-As of August 30th, 2024, OpenAI has four voices: `alloy`, `echo`, `fable`, `onyx`, `nova`, and `shimmer`. They also have two models: `tts-1` and `tts-1-hd`.
+As of August 30th, 2024, OpenAI has four voices: `alloy`, `echo`, `fable`, `onyx`, `nova`, and `shimmer`. They also have two voice_model: `tts-1` and `tts-1-hd`.
 ```
 OpenAIVoice(
     id=<any_unique_id>
     voice=<alloy | echo | fable | onyx | nova | shimmer>
-    model: <tts-1 | tts-1-hd>
+    voice_model: <tts-1 | tts-1-hd>
 )
 ```
 
 #### ElevenLabs
-Refer to the ElevenLabs documentation to find your voice and associated model and id.
+Refer to the ElevenLabs documentation to find your voice and associated voice_model and id.
 
 ```
 ElevenLabsVoice(
     id=<any_unique_id>
     voice=<eleven labs voice id>
-    model: <eleven_multilingual_v1 | eleven_turbo_v2 | eleven_turbo_v2_5> // Others may have been released
+    voice_model: <eleven_multilingual_v1 | eleven_turbo_v2 | eleven_turbo_v2_5> // Others may have been released
 )
 ```
 
@@ -111,7 +111,7 @@ with open(audio_file_path, "wb") as audio_file:
 ```
 
 #### Multiple SpeechBlock
-We (*evenetually will*) handle optimization of converting multiple SpeechBlocks in a List. Certain providers (OpenAI) do not provide a way to maintain context and intonation across multiple requests which becomes embarassingly parallel. Other platforms like ElevenLabs does enable this so that a TTS request can know how the previous one ended, creating more natural sounding realism.
+We (*will soon*) handle optimization of converting multiple SpeechBlocks in a List. Certain providers (OpenAI) do not provide a way to maintain context and intonation across multiple requests which becomes embarassingly parallel. Other platforms like ElevenLabs does enable this so that a TTS request can know how the previous one ended, creating more natural sounding realism.
 
 ```
 # Create SpeechBlock objects
