@@ -134,36 +134,6 @@ with open(audio_file_path, "wb") as audio_file:
     audio_file.write(audio)
 ```
 
-**Adding Buffer Between Voices**
-There are two ways to create delay (in ms) between output speech:
-- Create a `buffer` in the `SpeechBlock` object. This adds silence at the end of the block.
-
-```
-# Buffer of 5000 ms between first and second speech blocks
-# Create SpeechBlock objects
-speech_block_one = SpeechBlock(
-    voice_id=<voice_id_one>,
-    text="Some random text to convert to audio"
-    buffer=5000
-)
-
-speech_block_two = SpeechBlock(
-    voice_id=<voice_id_two>,
-    text="Some more random text to convert to audio"
-)
-
-audio = TTS().generate_speech_list([speech_block_one, speech_block_two])
-```
-
-- Add a consistent `buffer` between all `SpeechBlock` objects by calling `generate_speech_list()` with a `buffer` parameter.
-
-```
-# Buffer of 1000 ms between all speech blocks
-audio = TTS().generate_speech_list([speech_block_one, speech_block_two], buffer=1000)
-```
-
-These can also be combined so that there is both per `SpeechBlock` delay and global delay.
-
 ## Tests
 You can run the test suite by:
 ```

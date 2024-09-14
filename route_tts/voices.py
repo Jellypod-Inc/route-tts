@@ -19,5 +19,5 @@ class OpenAIVoice(Voice):
 
 class ElevenLabsVoice(Voice):
     voice_model: str
-    voice: str | Voice
+    voice: str 
     platform: Platform = Platform.ELEVENLABS

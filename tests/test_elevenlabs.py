@@ -61,41 +61,6 @@ async def test_generate_multiple_elevenlabs_speech():
     assert len(audio_segment) > 0, "No audio data was generated"
     save_audio_segment("test_output_multiple.mp3", audio_segment)
 
-    # Generate speech with buffer
-    audio_segment_buffer = tts_client.generate_speech_list([speech_block_a, speech_block_b], buffer=5000)
-    assert len(audio_segment) > 0, "No audio data was generated"
-    save_audio_segment("test_output_multiple_with_buffer.mp3", audio_segment_buffer)
-
-@pytest.mark.asyncio
-async def test_generate_multiple_elevenlabs_speech_different_buffers():
-    # Ensure ElevenLabs API key is set in environment variables
-    assert os.getenv("ELEVEN_API_KEY"), "ELEVEN_API_KEY must be set in environment variables"
-
-    # Initialize TTS client with ElevenLabs voices
-
-    # Create SpeechBlocks
-    speech_block_a = SpeechBlock(
-        voice_id="test_elevenlabs_voice_a",
-        text="What's up! This is a test of the ElevenLabs text-to-speech functionality.",
-        buffer=2000
-    )
-
-    speech_block_b = SpeechBlock(
-        voice_id="test_elevenlabs_voice_b",
-        text="And this is the rest of the speaking using a different voice.",
-        buffer=5000
-    )
-
-    speech_block_c = SpeechBlock(
-        voice_id="test_elevenlabs_voice_a",
-        text="Here I am again! Hi."
-    )
-
-    # Generate speech
-    audio_segment = tts_client.generate_speech_list([speech_block_a, speech_block_b, speech_block_c])
-    assert len(audio_segment) > 0, "No audio data was generated"
-    save_audio_segment("test_output_multiple_with_different_buffers.mp3", audio_segment)
-
 @pytest.mark.asyncio
 async def test_generate_multiple_elevenlabs_speech():
     # Ensure ElevenLabs API key is set in environment variables
@@ -123,6 +88,50 @@ async def test_generate_multiple_elevenlabs_speech():
     audio_segment = tts_client.generate_speech_list([speech_block_a, speech_block_b, speech_block_c], normalize_outputs=True)
     assert len(audio_segment) > 0, "No audio data was generated"
     save_audio_segment("test_output_multiple_normalized.mp3", audio_segment)
+
+@pytest.mark.asyncio
+async def test_generate_multiple_elevenlabs_speech_same_voice():
+    # Ensure ElevenLabs API key is set in environment variables
+    assert os.getenv("ELEVEN_API_KEY"), "ELEVEN_API_KEY must be set in environment variables"
+
+    # Create 5 SpeechBlocks with the same voice
+    speech_blocks = [
+        SpeechBlock(
+            voice_id="test_elevenlabs_voice_a",
+            text=f"This is speech block number {i + 1}. Testing multiple blocks with the same voice."
+        ) for i in range(3)
+    ]
+
+    # Generate speech
+    audio_segment = tts_client.generate_speech_list(speech_blocks, normalize_outputs=True)
+    assert len(audio_segment) > 0, "No audio data was generated"
+    save_audio_segment("test_output_multiple_same_voice.mp3", audio_segment)
+
+@pytest.mark.asyncio
+async def test_generate_multiple_elevenlabs_speech_continuous_context():
+    # Ensure ElevenLabs API key is set in environment variables
+    assert os.getenv("ELEVEN_API_KEY"), "ELEVEN_API_KEY must be set in environment variables"
+
+    # Create distinct speech blocks with continuous context
+    speech_blocks = [
+        SpeechBlock(
+            voice_id="test_elevenlabs_voice_a",
+            text="Once upon a time, in a land far away, there was a magical forest."
+        ),
+        SpeechBlock(
+            voice_id="test_elevenlabs_voice_a",
+            text="In this forest lived a wise old owl who knew all the secrets of the trees."
+        ),
+        SpeechBlock(
+            voice_id="test_elevenlabs_voice_a",
+            text="One day, a young adventurer stumbled upon the forest, seeking the owl's wisdom."
+        )
+    ]
+
+    # Generate speech
+    audio_segment = tts_client.generate_speech_list(speech_blocks, normalize_outputs=True)
+    assert len(audio_segment) > 0, "No audio data was generated"
+    save_audio_segment("test_output_continuous_context.mp3", audio_segment)
 
 def save_audio_segment(name: str, audio_segment):
     os.makedirs(OUTPUT_DIR, exist_ok=True)

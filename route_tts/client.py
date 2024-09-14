@@ -1,16 +1,15 @@
 import io
 import os
-from typing import List, Dict, Union
+from typing import List, Dict, Optional, Union, Tuple
 import openai
-from elevenlabs.client import ElevenLabs
 from pydantic import BaseModel
+from route_tts.eleven_labs.client import CustomElevenLabsClient
 from route_tts.voices import OpenAIVoice, ElevenLabsVoice, Platform, Voice
 from pydub import AudioSegment
 
 class SpeechBlock(BaseModel):
     voice_id: str
     text: str
-    buffer: int = 0  # Buffer in milliseconds between this speech block and the next one
 
 class TTS:
     def __init__(self, voices: List[Voice], openai_api_key: str = None, elevenlabs_api_key: str = None):
@@ -23,7 +22,7 @@ class TTS:
             self.openai_client = openai.OpenAI(api_key=openai_api_key or os.getenv("OPENAI_API_KEY"))
 
         if elevenlabs_api_key or os.getenv("ELEVEN_API_KEY"):
-            self.elevenlabs_client = ElevenLabs(api_key=elevenlabs_api_key or os.getenv("ELEVEN_API_KEY"))
+            self.elevenlabs_client = CustomElevenLabsClient(api_key=elevenlabs_api_key or os.getenv("ELEVEN_API_KEY"))
 
     def initialize_voices(self, voices: List[Voice]):
         """
@@ -73,60 +72,133 @@ class TTS:
         """
         return list(self.voices.values())
 
+    def generate_eleven_labs_audio_group(self, eleven_labs_speech_block_group: List[SpeechBlock]) -> List[Tuple[AudioSegment, Optional[str]]]:
+        eleven_labs_audio_segments = []
+        previous_request_ids = []
+
+        for i, block in enumerate(eleven_labs_speech_block_group):
+            voice = self.voices[block.voice_id]
+            is_first = i == 0
+            is_last = i == len(eleven_labs_speech_block_group) - 1
+
+            previous_text = None if is_first else " ".join(sb.text for sb in eleven_labs_speech_block_group[:i])
+            next_text = None if is_last else " ".join(sb.text for sb in eleven_labs_speech_block_group[i+1:])
+
+            audio_data, request_id = self._generate_elevenlabs_speech(
+                voice,
+                block.text,
+                previous_request_ids=previous_request_ids[-3:],
+                previous_text=previous_text,
+                next_text=next_text
+            )
+
+            audio_segment = self._create_audio_segment(audio_data)
+            eleven_labs_audio_segments.append((audio_segment, request_id))
+
+            # Store the request ID for the next iteration
+            previous_request_ids.append(request_id)
+
+        return eleven_labs_audio_segments
+
     # TODO: Optimze speech generation. Certain models lack context so they can be generated in parallel.
-    def generate_speech_list(self, speech_blocks: List[SpeechBlock], buffer: int = 0, single_output: bool = True, normalize_outputs: bool = True) -> Union[AudioSegment, List[AudioSegment]]:
+    def generate_speech_list(self, speech_blocks: List[SpeechBlock], single_output: bool = True, normalize_outputs: bool = True) -> Union[AudioSegment, List[AudioSegment]]:
         """
         Generate speech for a list of SpeechBlocks.
+
+        Performs request conditioning/stiching on consecutive ElevenLabs speech blocks
+        ref: https://elevenlabs.io/docs/api-reference/how-to-use-request-stitching
 
         This method takes a list of SpeechBlocks and generates audio for each one
         in sequence. It can return either a single combined AudioSegment or a list
         of individual AudioSegments.
 
         :param speech_blocks: List of SpeechBlock objects containing text and voice_id
-        :param buffer: Additional buffer (in ms) to add between speech blocks
         :param single_output: If True, returns a single combined AudioSegment;
                               if False, returns a list of individual AudioSegments
         :return: Either a single AudioSegment or a list of AudioSegments
         :raises ValueError: If any voice_id is not found or if there's an error in speech generation
         """
 
-        segments = []
+        request_stiching = True
+
+        audio_segments: List[AudioSegment] = []
+        eleven_labs_speech_block_group: List[SpeechBlock] = []
+
+        def is_eleven_labs_voice(speech_block: SpeechBlock):
+            voice = self.voices[speech_block.voice_id]
+            return voice.platform == Platform.ELEVENLABS
+
+        def should_group_speech_block(speech_block: SpeechBlock):
+            # If there's no block yet or if the last voice is the same
+            return (not eleven_labs_speech_block_group or eleven_labs_speech_block_group[-1].voice_id == speech_block.voice_id)
 
         for i, speech_block in enumerate(speech_blocks):
             try:
-                audio_segment = self.generate_speech(speech_block)
-                if speech_block.buffer > 0:
-                    audio_segment += AudioSegment.silent(duration=speech_block.buffer)
-                if buffer > 0 and i < len(speech_blocks) - 1:
-                    audio_segment += AudioSegment.silent(duration=buffer)
+                if (request_stiching):
+                    if (is_eleven_labs_voice(speech_block)):
+                        if (should_group_speech_block(speech_block)):
+                            eleven_labs_speech_block_group.append(speech_block)
+                        else:
+                            # Create the current segment audio
+                            eleven_labs_audio_segments = self.generate_eleven_labs_audio_group(eleven_labs_speech_block_group)
+                            audio_segments.extend([segment for segment, _ in eleven_labs_audio_segments])
 
-                segments.append(audio_segment)
+                            # Clear elevenlabs group and append new speech block
+                            eleven_labs_speech_block_group.clear()
+                            eleven_labs_speech_block_group.append(speech_block)
+                    else:
+                        # Create the current segment audio
+                        eleven_labs_audio_segments = self.generate_eleven_labs_audio_group(eleven_labs_speech_block_group)
+                        audio_segments.extend([segment for segment, _ in eleven_labs_audio_segments])
+
+                        # Generate this speech block
+                        audio_segment = self.generate_speech(speech_block)
+                        audio_segments.append(audio_segment)
+
+                else:
+                    audio_segment = self.generate_speech(speech_block)
+                    audio_segments.append(audio_segment)
             except Exception as e:
-                raise ValueError(f"Error generating speech for block: {str(e)}")
+                raise ValueError(f"Error generating speech for block. Error: {str(e)}")
+
+        # Add this block after the loop to process any remaining ElevenLabs speech blocks
+        if eleven_labs_speech_block_group:
+            eleven_labs_audio_segments = self.generate_eleven_labs_audio_group(eleven_labs_speech_block_group)
+            audio_segments.extend([segment for segment, _ in eleven_labs_audio_segments])
 
         # Normalize the audio segments
-        normalized_segments = self.normalize_audio(segments, normalize_outputs)
+        normalized_segments = self.normalize_audio(audio_segments, normalize_outputs)
 
         if single_output:
-            return sum(normalized_segments, AudioSegment.silent(duration=0))
+            # Combine all segments into a single AudioSegment
+            combined_audio = AudioSegment.empty()
+            for segment in normalized_segments:
+                audio = segment[0] if isinstance(segment, tuple) else segment
+                combined_audio += audio
+            return combined_audio
         else:
-            return normalized_segments
+            # Return a list of individual AudioSegments
+            return [segment[0] if isinstance(segment, tuple) else segment for segment in normalized_segments]
 
-    def normalize_audio(self, audio_segments: List[AudioSegment], normalize_outputs: bool, target_dBFS: float = -30.0, tolerance: float = 3.0) -> List[AudioSegment]:
+    def normalize_audio(self, audio_segments: List[Union[AudioSegment, Tuple[AudioSegment, Optional[str]]]], normalize_outputs: bool, target_dBFS: float = -30.0, tolerance: float = 3.0) -> List[Union[AudioSegment, Tuple[AudioSegment, Optional[str]]]]:
         """
         Softly normalize the volume of multiple AudioSegments to be closer to a target dBFS level.
 
-        :param audio_segments: List of AudioSegments to normalize
-        :param target_dBFS: Target dBFS level for normalization (default: -20.0)
+        :param audio_segments: List of AudioSegments or tuples (AudioSegment, request_id) to normalize
+        :param normalize_outputs: Whether to perform normalization
+        :param target_dBFS: Target dBFS level for normalization (default: -30.0)
         :param tolerance: Allowed deviation from target dBFS (default: 3.0)
-        :return: List of normalized AudioSegments
+        :return: List of normalized AudioSegments or tuples (AudioSegment, request_id)
         """
-        if (not normalize_outputs):
+        if not normalize_outputs:
             return audio_segments
 
+        def get_audio(item):
+            return item[0] if isinstance(item, tuple) else item
+
         # Find the maximum and minimum dBFS across all segments
-        max_dBFS = max(segment.dBFS for segment in audio_segments)
-        min_dBFS = min(segment.dBFS for segment in audio_segments)
+        max_dBFS = max(get_audio(segment).dBFS for segment in audio_segments)
+        min_dBFS = min(get_audio(segment).dBFS for segment in audio_segments)
 
         # Calculate the current range and the target range
         current_range = max_dBFS - min_dBFS
@@ -134,15 +206,21 @@ class TTS:
 
         normalized_segments = []
         for segment in audio_segments:
+            audio = get_audio(segment)
             if current_range > target_range:
                 # Compress the range if it's larger than the target range
-                normalized_dBFS = (segment.dBFS - min_dBFS) / current_range * target_range + (target_dBFS - tolerance)
-                adjustment = normalized_dBFS - segment.dBFS
-                normalized_segments.append(segment.apply_gain(adjustment))
+                normalized_dBFS = (audio.dBFS - min_dBFS) / current_range * target_range + (target_dBFS - tolerance)
+                adjustment = normalized_dBFS - audio.dBFS
+                normalized_audio = audio.apply_gain(adjustment)
             else:
                 # If the range is already small enough, just center it around the target
                 center_adjustment = target_dBFS - (max_dBFS + min_dBFS) / 2
-                normalized_segments.append(segment.apply_gain(center_adjustment))
+                normalized_audio = audio.apply_gain(center_adjustment)
+
+            if isinstance(segment, tuple):
+                normalized_segments.append((normalized_audio, segment[1]))
+            else:
+                normalized_segments.append(normalized_audio)
 
         return normalized_segments
 
@@ -154,7 +232,7 @@ class TTS:
         and calls the corresponding speech generation method.
 
         :param speech_block: SpeechBlock containing text and id
-        :return: Generated audio as bytes
+        :return: Generated audio as AudioSegment
         :raises ValueError: If id is not found or platform is unsupported
         """
 
@@ -165,7 +243,8 @@ class TTS:
         if voice.platform == Platform.OPENAI:
             return self._generate_openai_speech(voice, speech_block.text)
         elif voice.platform == Platform.ELEVENLABS:
-            return self._generate_elevenlabs_speech(voice, speech_block.text)
+            audio_data, _ = self._generate_elevenlabs_speech(voice, speech_block.text)
+            return self._create_audio_segment(audio_data)
         else:
             raise ValueError(f"Unsupported platform: {voice.platform}")
 
@@ -180,18 +259,29 @@ class TTS:
         )
         return self._create_audio_segment(response.content)
 
-    def _generate_elevenlabs_speech(self, voice: ElevenLabsVoice, text: str) -> AudioSegment:
+    def _generate_elevenlabs_speech(self, voice: ElevenLabsVoice, text: str, previous_text: Optional[str] = None, next_text: Optional[str] = None, previous_request_ids: Optional[List[str]] = None) -> Tuple[bytes, str]:
         if not self.elevenlabs_client:
             raise ValueError("ElevenLabs client is not initialized. Please provide a valid ElevenLabs API key.")
 
-        response = self.elevenlabs_client.generate(
-            model=voice.voice_model,
-            voice=voice.voice,
-            text=text
+        response = self.elevenlabs_client.generate_speech_with_conditioning(
+            text=text,
+            voice_id=voice.voice,
+            model_id=voice.voice_model,
+            previous_text=previous_text,
+            next_text=next_text,
+            previous_request_ids=previous_request_ids
         )
-        # Convert the generator to bytes
-        audio_data = b''.join(chunk for chunk in response)
-        return self._create_audio_segment(audio_data)
+
+        if response.status_code != 200:
+            raise ValueError(f"Error generating speech: {response.text}")
+
+        audio_data = response.content
+        request_id = response.headers.get("request-id")
+
+        if not request_id:
+            raise ValueError("No request-id found in response headers")
+
+        return audio_data, request_id
 
     def _create_audio_segment(self, audio_data: bytes) -> AudioSegment:
         return AudioSegment.from_file(io.BytesIO(audio_data))
