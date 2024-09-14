@@ -133,6 +133,32 @@ async def test_generate_multiple_elevenlabs_speech_continuous_context():
     assert len(audio_segment) > 0, "No audio data was generated"
     save_audio_segment("test_output_continuous_context.mp3", audio_segment)
 
+@pytest.mark.asyncio
+async def test_generate_multiple_elevenlabs_speech_continuous_context_no_request_stiching():
+    # Ensure ElevenLabs API key is set in environment variables
+    assert os.getenv("ELEVEN_API_KEY"), "ELEVEN_API_KEY must be set in environment variables"
+
+    # Create distinct speech blocks with continuous context
+    speech_blocks = [
+        SpeechBlock(
+            voice_id="test_elevenlabs_voice_a",
+            text="Once upon a time, in a land far away, there was a magical forest."
+        ),
+        SpeechBlock(
+            voice_id="test_elevenlabs_voice_a",
+            text="In this forest lived a wise old owl who knew all the secrets of the trees."
+        ),
+        SpeechBlock(
+            voice_id="test_elevenlabs_voice_a",
+            text="One day, a young adventurer stumbled upon the forest, seeking the owl's wisdom."
+        )
+    ]
+
+    # Generate speech
+    audio_segment = tts_client.generate_speech_list(speech_blocks, normalize_outputs=True, request_stitching=False)
+    assert len(audio_segment) > 0, "No audio data was generated"
+    save_audio_segment("test_output_continuous_context_no_stitching.mp3", audio_segment)
+
 def save_audio_segment(name: str, audio_segment):
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 

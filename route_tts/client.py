@@ -101,7 +101,7 @@ class TTS:
         return eleven_labs_audio_segments
 
     # TODO: Optimze speech generation. Certain models lack context so they can be generated in parallel.
-    def generate_speech_list(self, speech_blocks: List[SpeechBlock], single_output: bool = True, normalize_outputs: bool = True) -> Union[AudioSegment, List[AudioSegment]]:
+    def generate_speech_list(self, speech_blocks: List[SpeechBlock], single_output: bool = True, normalize_outputs: bool = True, request_stitching: bool = True) -> Union[AudioSegment, List[AudioSegment]]:
         """
         Generate speech for a list of SpeechBlocks.
 
@@ -119,8 +119,6 @@ class TTS:
         :raises ValueError: If any voice_id is not found or if there's an error in speech generation
         """
 
-        request_stiching = True
-
         audio_segments: List[AudioSegment] = []
         eleven_labs_speech_block_group: List[SpeechBlock] = []
 
@@ -134,7 +132,7 @@ class TTS:
 
         for i, speech_block in enumerate(speech_blocks):
             try:
-                if (request_stiching):
+                if (request_stitching):
                     if (is_eleven_labs_voice(speech_block)):
                         if (should_group_speech_block(speech_block)):
                             eleven_labs_speech_block_group.append(speech_block)
