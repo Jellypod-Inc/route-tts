@@ -1,0 +1,27 @@
+CHANGELOG.md
+  s_ae99626e8abab4::t_eb655c986ea805 5
+src/provider-utils.ts
+  s_ae99626e8abab4::t_eb655c986ea805 41-47,48-69,71,79,90-96,101-102,108-114,115,117-135,137-143,214-218,224-226,232
+  s_ae99626e8abab4::t_22fd2a8819ec94 76-78,84-88
+src/__tests__/elevenlabs-speech-model.test.ts
+  s_ae99626e8abab4::t_eb655c986ea805 2,7-59,65-77,113-116
+  s_ae99626e8abab4::t_de4e9f380ba33a 60-64
+README.md
+  s_ae99626e8abab4::t_eb655c986ea805 553-554
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "496addb1311c10ce0deef4f470213ad697e955ab",
+  "prompts": {},
+  "sessions": {
+    "s_ae99626e8abab4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a09b9a-b498-7f92-9516-be6ce593c038",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pierson Marks <pierson@jellypod.ai>"
+    }
+  }
+}
