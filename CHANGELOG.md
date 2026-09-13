@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.29.1
+
+- Classify ElevenLabs Terms-of-Service blocks as `SpeechSdkProviderError` with canonical `code: "content_policy"` and `retryable: false`, while preserving the original provider payload in `details` and leaving unrelated 403 responses unchanged. App callers should map `content_policy` to content-refusal UX (for example, `content_refused` with guidance to edit wording or switch hosts) instead of matching message strings.
+
 ## 0.29.0
 
 - **Breaking: the Speechbase gateway is removed.** Speechbase is deprecated, so a `"provider/model"` string now resolves straight to that provider's own implementation instead of proxying through `api.speechbase.ai`. `resolveModel("openai/tts-1")` is equivalent to `createOpenAI()("tts-1")`, so string and factory models take the same code path, use the same per-provider env var (`OPENAI_API_KEY`, `ELEVENLABS_API_KEY`, …), and get the same client-side behavior: auto-chunking, volume normalization, output conversion, local time-stretching for `speed`, pronunciation substitution, and timestamp alignment. A bare provider id (`"openai"`) uses that provider's default model; an unrecognized prefix throws before any request is made, listing the supported prefixes.
