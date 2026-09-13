@@ -1,8 +1,119 @@
 import { describe, expect, it, vi } from "vitest";
+import { SpeechSdkProviderError } from "../errors.js";
 import { SDK_USER_AGENT } from "../provider-utils.js";
 import { ElevenLabsSpeechProvider } from "../providers/elevenlabs/index.js";
 
 describe("ElevenLabsSpeechProvider", () => {
+  it("classifies ToS blocks as non-retryable content policy errors", async () => {
+    const providerBody = {
+      detail: {
+        type: "authorization_error",
+        code: "forbidden",
+        message:
+          "The text you are trying to use may violate our Terms of Service and has been blocked.",
+      },
+    };
+    const rawResponse = JSON.stringify(providerBody);
+    const provider = new ElevenLabsSpeechProvider({
+      apiKey: "test-key",
+      fetch: vi.fn().mockResolvedValue(
+        new Response(rawResponse, {
+          status: 403,
+          headers: { "request-id": "elevenlabs-request-123" },
+        })
+      ),
+    });
+
+    const thrown = await provider
+      .generate({
+        modelId: "eleven_multilingual_v2",
+        text: "Sensitive input is not repeated in the error.",
+        voice: "voice-123",
+      })
+      .catch((error: unknown) => error);
+
+    expect(thrown).toBeInstanceOf(SpeechSdkProviderError);
+    expect(thrown).toMatchObject({
+      status: 403,
+      provider: "elevenlabs",
+      model: "eleven_multilingual_v2",
+      code: "content_policy",
+      details: providerBody,
+      rawResponse,
+      requestId: "elevenlabs-request-123",
+      retryable: false,
+      stage: "synthesis",
+    });
+    expect((thrown as Error).message).not.toContain("Sensitive input");
+  });
+
+  it("leaves unrelated ElevenLabs 403 errors on their existing path", async () => {
+    const providerBody = {
+      detail: {
+        type: "authorization_error",
+        code: "voice_not_found",
+        message: "This voice is not available to your account.",
+      },
+    };
+    const provider = new ElevenLabsSpeechProvider({
+      apiKey: "test-key",
+      fetch: vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify(providerBody), { status: 403 })
+        ),
+    });
+
+    await expect(
+      provider.generate({
+        modelId: "eleven_multilingual_v2",
+        text: "Hello world",
+        voice: "restricted-voice",
+      })
+    ).rejects.toMatchObject({
+      status: 403,
+      provider: "elevenlabs",
+      code: "voice_not_found",
+      details: providerBody,
+      retryable: false,
+    });
+  });
+
+  it("classifies a wrapped ToS message without a provider code", async () => {
+    const providerBody = {
+      message: "Upstream provider rejected the request.",
+      details: {
+        detail: {
+          type: "authorization_error",
+          message:
+            "The text you are trying to use may violate our Terms of Service and has been blocked.",
+        },
+      },
+    };
+    const provider = new ElevenLabsSpeechProvider({
+      apiKey: "test-key",
+      fetch: vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify(providerBody), { status: 500 })
+        ),
+    });
+
+    await expect(
+      provider.generate({
+        modelId: "eleven_multilingual_v2",
+        text: "Sensitive input",
+        voice: "voice-123",
+      })
+    ).rejects.toMatchObject({
+      status: 500,
+      provider: "elevenlabs",
+      code: "content_policy",
+      details: providerBody,
+      retryable: false,
+    });
+  });
+
   it("calls the correct URL with voice_id in path", async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,

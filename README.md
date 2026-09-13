@@ -550,6 +550,8 @@ try {
 
 `SpeechSdkProviderError` extends `ApiError`, so existing `instanceof ApiError`, `statusCode`, and `responseBody` handling remains compatible. `code` is populated from provider error codes (including Google `error.status`) or the RFC 7807 `code` extension. Match on `code` over `message` text — codes are a stable contract, messages aren't.
 
+ElevenLabs Terms-of-Service content blocks use the canonical code `content_policy` with `retryable: false`. App callers should map that code to their content-refusal UX (for example, `content_refused` with guidance to edit the wording or switch hosts). The original ElevenLabs `type` and `code` remain available in `details`; string matching is only a compatibility fallback for older SDK versions.
+
 | Error | When |
 |---|---|
 | `SpeechSdkProviderError` | Provider returned non-2xx; includes the parsed and raw provider response |

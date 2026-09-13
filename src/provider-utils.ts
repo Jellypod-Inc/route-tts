@@ -38,41 +38,109 @@ function stringProperty(value: unknown, property: string): string | undefined {
   return typeof candidate === "string" ? candidate : undefined;
 }
 
-function parseErrorBody(body: string | undefined): {
-  message?: string;
-  code?: string;
-  details?: unknown;
-  requestId?: string;
-} {
+interface ParsedErrorBody {
+  readonly code?: string;
+  readonly details?: unknown;
+  readonly message?: string;
+  readonly messages: readonly string[];
+  readonly providerCodes: readonly string[];
+  readonly requestId?: string;
+}
+
+function nestedRecord(value: unknown, property: string): unknown {
+  return isRecord(value) ? value[property] : undefined;
+}
+
+function errorBodyCandidates(json: unknown): readonly unknown[] {
+  const error = nestedRecord(json, "error");
+  const detail = nestedRecord(json, "detail");
+  const details = nestedRecord(json, "details");
+  return [
+    json,
+    error,
+    detail,
+    nestedRecord(error, "detail"),
+    details,
+    nestedRecord(details, "detail"),
+    nestedRecord(details, "error"),
+  ];
+}
+
+function parseErrorBody(body: string | undefined): ParsedErrorBody {
   if (!body) {
-    return {};
+    return { messages: [], providerCodes: [] };
   }
   try {
     const json: unknown = JSON.parse(body);
     const error = isRecord(json) ? json.error : undefined;
-    const candidates = [
+    const detail = nestedRecord(json, "detail");
+    const errorDetail = nestedRecord(error, "detail");
+    const details = nestedRecord(json, "details");
+    const messageCandidates = [
       typeof error === "string" ? error : undefined,
       stringProperty(error, "message"),
       stringProperty(json, "message"),
       stringProperty(json, "detail"),
+      stringProperty(detail, "message"),
+      stringProperty(errorDetail, "message"),
+      stringProperty(details, "message"),
+      stringProperty(nestedRecord(details, "detail"), "message"),
+      stringProperty(nestedRecord(details, "error"), "message"),
     ];
-    const message =
-      candidates.find((c: unknown): c is string => typeof c === "string") ??
-      truncate(body);
+    const messages = messageCandidates.filter(
+      (candidate): candidate is string => typeof candidate === "string"
+    );
+    const message = messages[0] ?? truncate(body);
+    const providerCodes = errorBodyCandidates(json)
+      .map((candidate) => stringProperty(candidate, "code"))
+      .filter((candidate): candidate is string => candidate !== undefined);
     const code =
       stringProperty(json, "code") ??
       stringProperty(error, "code") ??
       stringProperty(error, "status") ??
-      stringProperty(json, "status");
+      stringProperty(json, "status") ??
+      providerCodes[0];
     const requestId =
       stringProperty(json, "requestId") ??
       stringProperty(json, "request_id") ??
       stringProperty(error, "requestId") ??
       stringProperty(error, "request_id");
-    return { message, code, details: json, requestId };
+    return {
+      message,
+      messages,
+      code,
+      providerCodes,
+      details: json,
+      requestId,
+    };
   } catch {
-    return { message: truncate(body), details: body };
+    return {
+      message: truncate(body),
+      messages: [body],
+      providerCodes: [],
+      details: body,
+    };
   }
+}
+
+const ELEVENLABS_CONTENT_POLICY_CODE = "content_policy";
+const ELEVENLABS_TOS_MESSAGE = "may violate our terms of service";
+
+function isElevenLabsContentPolicyError(
+  status: number,
+  provider: string,
+  parsed: ParsedErrorBody
+): boolean {
+  if (provider !== "elevenlabs") {
+    return false;
+  }
+  const isForbidden = parsed.providerCodes.some(
+    (code) => code.toLowerCase() === "forbidden"
+  );
+  const mentionsTermsOfService = parsed.messages.some((message) =>
+    message.toLowerCase().includes(ELEVENLABS_TOS_MESSAGE)
+  );
+  return (status === 403 && isForbidden) || mentionsTermsOfService;
 }
 
 // 501 is terminal — it signals "capability will never work" (e.g. timestamps_unsupported).
@@ -143,19 +211,25 @@ export async function handleErrorResponse(
   }
   const rawResponse = await response.text().catch(() => undefined);
   const parsed = parseErrorBody(rawResponse);
+  const isContentPolicyError = isElevenLabsContentPolicyError(
+    response.status,
+    context.provider,
+    parsed
+  );
   const message = parsed.message
     ? `API error ${response.status}: ${parsed.message}`
     : `API error ${response.status}`;
   const retryAfterMs = parseRetryAfter(response.headers.get("retry-after"));
   const retryable =
-    response.status === 429 ||
-    (response.status >= 500 && response.status !== 501);
+    !isContentPolicyError &&
+    (response.status === 429 ||
+      (response.status >= 500 && response.status !== 501));
 
   throw new SpeechSdkProviderError(message, {
     status: response.status,
     provider: context.provider,
     model: context.model,
-    code: parsed.code,
+    code: isContentPolicyError ? ELEVENLABS_CONTENT_POLICY_CODE : parsed.code,
     details: parsed.details,
     rawResponse,
     requestId: responseRequestId(response) ?? parsed.requestId,
