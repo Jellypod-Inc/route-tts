@@ -6,6 +6,9 @@ src/provider-utils.ts
 src/__tests__/elevenlabs-speech-model.test.ts
   s_ae99626e8abab4::t_eb655c986ea805 2,7-59,65-77,113-116
   s_ae99626e8abab4::t_de4e9f380ba33a 60-64
+  s_ae99626e8abab4::t_134e91fb0acd1e 82-94,100-112
+  s_ae99626e8abab4::t_292256f1638d70 95-99
+  s_ae99626e8abab4::t_9a20d572ab546d 78-81
 README.md
   s_ae99626e8abab4::t_eb655c986ea805 553-554
 ---
